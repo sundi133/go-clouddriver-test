@@ -18,6 +18,10 @@ const (
 	headerSpinnakerApplication = `X-Spinnaker-Application`
 )
 
+type Controller struct {
+	FiatClient fiat.Client
+}
+
 func (cc *Controller) AuthApplication(permissions ...string) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		user := c.GetHeader(headerSpinnakerUser)
@@ -93,11 +97,13 @@ func (cc *Controller) AuthAccount(permissions ...string) gin.HandlerFunc {
 	}
 }
 
+// 🔒 VOTAL.AI Security Fix: Authorization bypass when user header missing for operations (AuthOps) [CWE-284] - CRITICAL
 func (cc *Controller) AuthOps(permissions ...string) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		user := c.GetHeader(headerSpinnakerUser)
 		if user == "" {
-			c.Next()
+			clouddriver.Error(c, http.StatusUnauthorized, fmt.Errorf("missing required %s header", headerSpinnakerUser)) // FIX: abort if user header missing
+			c.Abort()
 			return
 		}
 
