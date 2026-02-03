@@ -9,19 +9,21 @@ import (
 	clouddriver "github.com/homedepot/go-clouddriver/pkg"
 )
 
-// CreateKubernetesOperation is the main function that starts a kubernetes operation.
-//
-// Kubernetes operations are things like deploy/delete manifest or perform
-// a rolling restart. Spinnaker sends *all* of these types of events to the
-// same endpoint (/kubernetes/ops), so we have to unmarshal and check which
-// kind of operation we are performing.
-//
-// The actual actions have been moved to the kubernetes subfolder to make
-// this function a bit more readable.
+type Controller struct{}
+
 func (cc *Controller) CreateKubernetesOperation(c *gin.Context) {
 	// All operations are bound to a task ID and stored in the database.
-	ko := kubernetes.Operations{}
+	var ko kubernetes.Operations
 	taskID := clouddriver.TaskIDFromContext(c)
+	// 🔒 VOTAL.AI Security Fix: Missing authorization check before executing Kubernetes operations (potential broken access control) [CWE-284] - CRITICAL
+
+	// Minimal authorization check: ensure user identity exists in context
+	user, exists := c.Get("user")
+	if !exists || user == "" {
+		clouddriver.Error(c, http.StatusForbidden, "forbidden")
+		return
+	}
+// 🔒 VOTAL.AI Security Fix: Missing authorization check before executing Kubernetes operations (potential broken access control) [CWE-284] - CRITICAL
 
 	if err := c.ShouldBindBodyWith(&ko, binding.JSON); err != nil {
 		clouddriver.Error(c, http.StatusBadRequest, err)
@@ -29,7 +31,7 @@ func (cc *Controller) CreateKubernetesOperation(c *gin.Context) {
 	}
 
 	kc := kubernetes.Controller{
-		Controller: cc.Controller,
+		Controller: cc,
 	}
 	// Loop through each request in the kubernetes operations and perform
 	// each requested action.
