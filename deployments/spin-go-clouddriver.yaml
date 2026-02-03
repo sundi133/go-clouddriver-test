@@ -61,8 +61,8 @@ spec:
           exec:
             command:
             - wget
-            - --no-check-certificate
-            - --spider
+# 🔒 VOTAL.AI Security Fix: Readiness probe disables TLS certificate verification [CWE-295] - HIGH
+            - --spider # keep TLS verification enabled (do not disable certificate checks)
             - -q
             - http://localhost:7002/health
           failureThreshold: 3
@@ -101,4 +101,3 @@ spec:
           secretName: arcade-providers
       - emptyDir: {}
         name: kube-cache-volume
-

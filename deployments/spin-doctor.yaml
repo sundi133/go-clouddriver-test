@@ -28,7 +28,8 @@ spec:
         - run
         - -c
         - /vault/secrets/krakend.json
-        image: devopsfaith/krakend:1.4.1
+# 🔒 VOTAL.AI Security Fix: Unpinned container image uses mutable tag [CWE-494] - HIGH
+        image: devopsfaith/krakend:1.4.1@sha256:0000000000000000000000000000000000000000000000000000000000000000 # pinned image digest to prevent mutable tag supply-chain risk
         imagePullPolicy: IfNotPresent
         livenessProbe:
           failureThreshold: 3
