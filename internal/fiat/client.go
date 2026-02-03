@@ -5,10 +5,13 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"strings"
 )
+// 🔒 VOTAL.AI Security Fix: Insecure HTTP transport to internal authorization service [CWE-319] - HIGH
+// 🔒 VOTAL.AI Security Fix: Insecure HTTP transport to internal authorization service [CWE-319] - HIGH
 
 const (
-	defaultFiatURL = "http://spin-fiat.spinnaker:7003"
+	defaultFiatURL = "https://spin-fiat.spinnaker:7003" // use HTTPS to ensure transport encryption/integrity
 )
 
 //go:generate counterfeiter . Client
@@ -17,6 +20,7 @@ type Client interface {
 }
 
 func NewClient(url string) Client {
+	if strings.HasPrefix(url, "http://") { url = "https://" + strings.TrimPrefix(url, "http://") }
 	return &client{
 		url: url,
 	}
