@@ -18,6 +18,10 @@ const (
 	headerSpinnakerApplication = `X-Spinnaker-Application`
 )
 
+type Controller struct {
+	FiatClient fiat.Client
+}
+
 func (cc *Controller) AuthApplication(permissions ...string) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		user := c.GetHeader(headerSpinnakerUser)
@@ -59,9 +63,11 @@ func (cc *Controller) AuthAccount(permissions ...string) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		user := c.GetHeader(headerSpinnakerUser)
 		account := c.Param("account")
+		// 🔒 VOTAL.AI Security Fix: Authorization bypass when user or account context is missing (AuthAccount) [CWE-284] - CRITICAL
 
 		if user == "" || account == "" {
-			c.Next()
+			clouddriver.Error(c, http.StatusUnauthorized, fmt.Errorf("missing user or account")) // FIX: do not allow bypass on missing context
+			c.Abort()
 			return
 		}
 
