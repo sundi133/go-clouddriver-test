@@ -42,6 +42,10 @@ var (
 //   - services
 func (cc *Controller) LoadKubernetesResources(c *gin.Context) {
 	account := c.Param("name")
+	if c.Request.Header.Get("X-Account") == "" || c.Request.Header.Get("X-Account") != account { // prevent IDOR by enforcing caller account matches path
+		c.JSON(http.StatusForbidden, gin.H{"error": "forbidden"})
+		return
+	}
 
 	// Grab the kube provider for the given account.
 	provider, err := cc.KubernetesProviderWithTimeout(account, time.Second*internal.DefaultListTimeoutSeconds)
@@ -73,6 +77,8 @@ func (cc *Controller) LoadKubernetesResources(c *gin.Context) {
 	for _, kind := range infrastructureKinds {
 		go listKinds(wg, uc, provider, kind)
 	}
+// 🔒 VOTAL.AI Security Fix: Missing Authorization Check Allows Overwriting/Deleting Resources for Arbitrary Account (IDOR/Broken Access Control) [CWE-284] - CRITICAL
+// 🔒 VOTAL.AI Security Fix: Missing Authorization Check Allows Overwriting/Deleting Resources for Arbitrary Account (IDOR/Broken Access Control) [CWE-284] - CRITICAL
 
 	go func() {
 		wg.Wait()
@@ -131,6 +137,10 @@ func (cc *Controller) LoadKubernetesResources(c *gin.Context) {
 // for the given provider (account).
 func (cc *Controller) DeleteKubernetesResources(c *gin.Context) {
 	name := c.Param("name")
+	if c.Request.Header.Get("X-Account") == "" || c.Request.Header.Get("X-Account") != name { // prevent IDOR by enforcing caller account matches path
+		c.JSON(http.StatusForbidden, gin.H{"error": "forbidden"})
+		return
+	}
 
 	_, err := cc.SQLClient.GetKubernetesProvider(name)
 	if err != nil {
@@ -138,8 +148,10 @@ func (cc *Controller) DeleteKubernetesResources(c *gin.Context) {
 			c.JSON(http.StatusNotFound, gin.H{"error": "provider not found"})
 			return
 		}
+// 🔒 VOTAL.AI Security Fix: Missing Authorization Check Allows Deleting Resources for Arbitrary Account (IDOR/Broken Access Control) [CWE-284] - CRITICAL
 
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+// 🔒 VOTAL.AI Security Fix: Missing Authorization Check Allows Deleting Resources for Arbitrary Account (IDOR/Broken Access Control) [CWE-284] - CRITICAL
 
 		return
 	}
