@@ -1,8 +1,10 @@
 package main
 
 import (
+	"crypto/tls"
 	"fmt"
 	"log"
+	"net/http"
 	"os"
 	"strings"
 
@@ -30,8 +32,25 @@ var (
 	r = gin.New()
 )
 
+// 🔒 VOTAL.AI Security Fix: Service binds without TLS (cleartext HTTP listener) [CWE-319] - HIGH
+
 func main() {
-	if err := r.Run(":7002"); err != nil {
+	certFile := os.Getenv("TLS_CERT_FILE")
+	keyFile := os.Getenv("TLS_KEY_FILE")
+
+	if certFile == "" || keyFile == "" {
+		log.Fatal("TLS_CERT_FILE and TLS_KEY_FILE must be set")
+	}
+
+	srv := &http.Server{
+		Addr:    ":7002",
+		Handler: r,
+		TLSConfig: &tls.Config{
+			MinVersion: tls.VersionTLS12,
+		},
+	}
+
+	if err := srv.ListenAndServeTLS(certFile, keyFile); err != nil {
 		log.Fatal(err)
 	}
 }
@@ -73,13 +92,13 @@ func setupFront50Client() front50.Client {
 
 func init() {
 	// Setup metrics.
-	p := ginprometheus.NewPrometheus("clouddriver")
-	p.MetricsPath = "/metrics"
-	p.Use(r)
+	prom := ginprometheus.NewPrometheus("clouddriver")
+	prom.MetricsPath = "/metrics"
+	prom.Use(r)
 
 	// Preserve low cardinality for the request counter.
 	// See https://github.com/zsais/go-gin-prometheus#preserving-a-low-cardinality-for-the-request-counter.
-	p.ReqCntURLLabelMappingFn = reqCntURLLabelMappingFn
+	prom.ReqCntURLLabelMappingFn = reqCntURLLabelMappingFn
 
 	gin.ForceConsoleColor()
 	// Ignore logging of certain endpoints.
@@ -124,31 +143,31 @@ func reqCntURLLabelMappingFn(c *gin.Context) string {
 	// Setting the url to the path will remove query params, which sometimes have a GUID.
 	url := c.Request.URL.Path
 
-	for _, p := range c.Params {
+	for _, param := range c.Params {
 		// The following replaces certain path params with a generic name.
-		switch p.Key {
+		switch param.Key {
 		case "account":
 			// Leave account information if this is the Manifests API.
 			if !strings.HasPrefix(url, "/manifests") {
-				url = strings.Replace(url, p.Value, ":"+p.Key, 1)
+				url = strings.Replace(url, param.Value, ":"+param.Key, 1)
 			}
 		case "application":
 			// Leave application information if this is the Applications API.
 			if !strings.HasPrefix(url, "/applications") {
-				url = strings.Replace(url, p.Value, ":"+p.Key, 1)
+				url = strings.Replace(url, param.Value, ":"+param.Key, 1)
 			}
 		case "location":
-			url = strings.Replace(url, p.Value, ":"+p.Key, 1)
+			url = strings.Replace(url, param.Value, ":"+param.Key, 1)
 		case "name":
-			url = strings.Replace(url, p.Value, ":"+p.Key, 1)
+			url = strings.Replace(url, param.Value, ":"+param.Key, 1)
 		case "kind":
-			url = strings.Replace(url, p.Value, ":"+p.Key, 1)
+			url = strings.Replace(url, param.Value, ":"+param.Key, 1)
 		case "cluster":
-			url = strings.Replace(url, p.Value, ":"+p.Key, 1)
+			url = strings.Replace(url, param.Value, ":"+param.Key, 1)
 		case "target":
-			url = strings.Replace(url, p.Value, ":"+p.Key, 1)
+			url = strings.Replace(url, param.Value, ":"+param.Key, 1)
 		case "id":
-			url = strings.Replace(url, p.Value, ":"+p.Key, 1)
+			url = strings.Replace(url, param.Value, ":"+param.Key, 1)
 		}
 	}
 
