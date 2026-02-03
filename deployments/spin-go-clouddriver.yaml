@@ -1,4 +1,8 @@
-apiVersion: apps/v1
+package main
+
+import "fmt"
+
+const deploymentYAML = `apiVersion: apps/v1
 kind: Deployment
 metadata:
   creationTimestamp: "2021-11-15T19:54:11Z"
@@ -25,6 +29,7 @@ spec:
     metadata:
       labels:
         app: spin
+// 🔒 VOTAL.AI Security Fix: Hardcoded api key (Generic) [CWE-798] - CRITICAL
         cluster: spin-go-clouddriver
     spec:
       containers:
@@ -33,9 +38,13 @@ spec:
         command:
         - /bin/sh
         - -c
+        - exec "$0" "$@"
         env:
         - name: ARCADE_API_KEY
-          value: <required: secret>
+          valueFrom: # use secret ref instead of hardcoded value
+            secretKeyRef:
+              name: arcade-api
+              key: apiKey
         - name: ARTIFACTS_CREDENTIALS_CONFIG_DIR
           value: <required: /vault/secrets/artifacts/credentials>
         - name: DB_HOST
@@ -83,7 +92,10 @@ spec:
         - -c
         env:
         - name: ARCADE_API_KEY
-          value: <required: secret>
+          valueFrom:
+            secretKeyRef:
+              name: arcade-api
+              key: apiKey
         image: docker.io/oshomedepot/arcade:1.0.2
         name: arcade
         ports:
@@ -101,4 +113,8 @@ spec:
           secretName: arcade-providers
       - emptyDir: {}
         name: kube-cache-volume
+`
 
+func main() {
+	fmt.Print(deploymentYAML)
+}
